@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AeroBackgiftbot Arena</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-main: #0b0e14;
+            --card-bg: #151a23;
+            --card-border: #232a37;
+            --accent-purple: #7c5cff;
+            --accent-cyan: #00e676;
+            --accent-red: #ff5252;
+            --accent-gold: #ffca28;
+            --text-main: #ffffff;
+            --text-sub: #90a4ae;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        body { background-color: var(--bg-main); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; background: var(--card-bg); border-bottom: 1px solid var(--card-border);
+        }
+
+        .user-profile { display: flex; align-items: center; gap: 10px; }
+        .avatar {
+            width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--accent-purple);
+            overflow: hidden; background: #252d3c; display: flex; align-items: center; justify-content: center;
+        }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .balances { display: flex; gap: 6px; font-size: 0.8rem; margin-top: 2px; }
+        .badge-ton { background: #1c2331; padding: 2px 8px; border-radius: 12px; border: 1px solid #2c3545; color: var(--accent-gold); font-weight: bold; }
+        .badge-stars { background: #1c2331; padding: 2px 8px; border-radius: 12px; border: 1px solid #2c3545; color: #00b0ff; font-weight: bold; }
+
+        .lang-switch-btn {
+            background: #1c2331; border: 1px solid #2c3545; color: white;
+            padding: 6px 12px; border-radius: 14px; font-size: 0.8rem; font-weight: bold; cursor: pointer;
+        }
+
+        .deposit-btn {
+            background: linear-gradient(135deg, #7c5cff, #00b0ff); border: none; color: white;
+            padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; cursor: pointer;
+        }
+
+        .view-container { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 85px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .rocket-arena {
+            background: #0e131d; border: 1px solid var(--card-border); border-radius: 18px;
+            height: 240px; position: relative; overflow: hidden; display: flex;
+            flex-direction: column; justify-content: center; align-items: center; margin-bottom: 15px;
+        }
+
+        .rocket-stage { position: absolute; bottom: 30px; transition: transform 0.1s linear; }
+        .rocket-icon { font-size: 4rem; filter: drop-shadow(0 0 10px rgba(255,167,38,0.8)); }
+
+        .multiplier-text { font-size: 3.5rem; font-weight: 900; color: var(--accent-cyan); z-index: 2; }
+        .multiplier-text.crashed { color: var(--accent-red) !important; }
+
+        .bet-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; }
+        .bet-inputs { display: flex; gap: 10px; margin-bottom: 12px; }
+        .bet-field {
+            flex: 1; background: #1c2331; border: 1px solid #2c3545; color: white;
+            padding: 12px; border-radius: 12px; text-align: center; font-size: 1rem; font-weight: bold; outline: none;
+        }
+
+        .action-btn { width: 100%; padding: 15px; border-radius: 14px; border: none; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+        .btn-bet { background: linear-gradient(135deg, #7c5cff, #64b5f6); color: white; }
+        .btn-cashout { background: linear-gradient(135deg, #00e676, #00b0ff); color: black; }
+
+        .card-item {
+            background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px;
+            padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+        }
+
+        nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg);
+            border-top: 1px solid var(--card-border); display: flex; justify-content: space-around; padding: 10px 0 14px 0; z-index: 100;
+        }
+
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-sub); font-size: 0.75rem; cursor: pointer; width: 20%; }
+        .nav-item.active { color: var(--accent-purple); font-weight: bold; }
+        .nav-icon { font-size: 1.4rem; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="user-profile">
+            <div class="avatar" id="userAvatar">👤</div>
+            <div>
+                <div id="userName" style="font-weight: bold;">Player</div>
+                <div class="balances">
+                    <div class="badge-ton">💎 <span id="tonBal">0.00</span> TON</div>
+                    <div class="badge-stars">⭐ <span id="starsBal">0</span></div>
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="lang-switch-btn" onclick="toggleLanguage()" id="langBtn">🇷🇺 RU</button>
+            <button class="deposit-btn" onclick="triggerDeposit()">Deposit</button>
+        </div>
+    </header>
+
+    <div class="view-container">
+        <div id="tab-rocket" class="tab-content active">
+            <div class="rocket-arena">
+                <div class="rocket-stage" id="rocketStage"><div class="rocket-icon">🚀</div></div>
+                <div class="multiplier-text" id="multDisplay">1.00x</div>
+            </div>
+
+            <div class="bet-box">
+                <div class="bet-inputs">
+                    <input type="number" id="betAmount" class="bet-field" value="0.10" step="0.10" min="0.10">
+                    <select id="currencyType" class="bet-field" style="max-width: 100px;">
+                        <option value="TON">TON</option>
+                        <option value="STARS">⭐ Star</option>
+                    </select>
+                </div>
+                <button class="action-btn btn-bet" id="mainGameBtn" onclick="handleGameAction()">Place Bet</button>
+            </div>
+        </div>
+
+        <div id="tab-pvp" class="tab-content">
+            <h3 style="margin-bottom: 15px;" id="pvpTitle">⚔️ PvP Battles</h3>
+            <div class="card-item">
+                <div><div id="pvpRoom">Quick Room #104</div><small style="color: var(--text-sub);">Bet: 1.00 TON</small></div>
+                <button class="deposit-btn" style="padding: 6px 14px;" onclick="alert('Join...')" id="btnJoin">Join</button>
+            </div>
+        </div>
+
+        <div id="tab-backpack" class="tab-content">
+            <h3 style="margin-bottom: 12px;" id="bpTitle">🎒 Backpack & Gifts</h3>
+            <p style="color: var(--text-sub); font-size: 0.9rem;" id="bpDesc">Send gifts to <b>@AeroBackgift</b> to use them in bets!</p>
+        </div>
+
+        <div id="tab-leaderboard" class="tab-content">
+            <h3 style="margin-bottom: 15px;" id="topTitle">🏆 Leaderboard</h3>
+            <div class="card-item">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span>🥇</span>
+                    <div><b>EpicKing</b><br><small style="color: var(--text-sub);">Profit: 450.0 TON</small></div>
+                </div>
+                <span style="color: var(--accent-gold); font-weight: bold;">#1</span>
+            </div>
+        </div>
+
+        <div id="tab-earn" class="tab-content">
+            <h3 style="margin-bottom: 15px;" id="earnTitle">💰 Earn Stars</h3>
+            <div class="card-item">
+                <div><div id="task1">Join Official Channel</div><small style="color: #00b0ff;">+50 ⭐ Stars</small></div>
+                <button class="deposit-btn" style="padding: 6px 14px;" onclick="alert('Claimed!')" id="btnClaim">Claim</button>
+            </div>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-item active" onclick="switchNav('rocket', this)"><span class="nav-icon">🚀</span><span id="navRocket">Rocket</span></div>
+        <div class="nav-item" onclick="switchNav('pvp', this)"><span class="nav-icon">⚔️</span><span id="navPvp">PvP</span></div>
+        <div class="nav-item" onclick="switchNav('backpack', this)"><span class="nav-icon">🎒</span><span id="navGifts">Gifts</span></div>
+        <div class="nav-item" onclick="switchNav('leaderboard', this)"><span class="nav-icon">🏆</span><span id="navTop">Top</span></div>
+        <div class="nav-item" onclick="switchNav('earn', this)"><span class="nav-icon">💰</span><span id="navEarn">Earn</span></div>
+    </nav>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+
+        let currentLang = "en";
+        const uiTexts = {
+            en: {
+                langBtn: "🇷🇺 RU", placeBet: "Place Bet", cashOut: "Cash Out",
+                pvpTitle: "⚔️ PvP Battles", pvpRoom: "Quick Room #104", btnJoin: "Join",
+                bpTitle: "🎒 Backpack & Gifts", bpDesc: "Send gifts to @AeroBackgift to use them in bets!",
+                topTitle: "🏆 Leaderboard", earnTitle: "💰 Earn Stars", task1: "Join Official Channel", btnClaim: "Claim",
+                navRocket: "Rocket", navPvp: "PvP", navGifts: "Gifts", navTop: "Top", navEarn: "Earn"
+            },
+            ru: {
+                langBtn: "🇬🇧 EN", placeBet: "Сделать ставку", cashOut: "Забрать",
+                pvpTitle: "⚔️ PvP Сражения", pvpRoom: "Быстрая комната #104", btnJoin: "Войти",
+                bpTitle: "🎒 Рюкзак и Подарки", bpDesc: "Отправляйте подарки на @AeroBackgift для использования в ставках!",
+                topTitle: "🏆 Лидеры", earnTitle: "💰 Заработать Stars", task1: "Подписаться на канал", btnClaim: "Забрать",
+                navRocket: "Ракета", navPvp: "PvP", navGifts: "Подарки", navTop: "Топ", navEarn: "Заработать"
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === "en" ? "ru" : "en";
+            const t = uiTexts[currentLang];
+            document.getElementById('langBtn').innerText = t.langBtn;
+            if (!isGameRunning) document.getElementById('mainGameBtn').innerText = t.placeBet;
+            document.getElementById('pvpTitle').innerText = t.pvpTitle;
+            document.getElementById('pvpRoom').innerText = t.pvpRoom;
+            document.getElementById('btnJoin').innerText = t.btnJoin;
+            document.getElementById('bpTitle').innerText = t.bpTitle;
+            document.getElementById('bpDesc').innerHTML = t.bpDesc;
+            document.getElementById('topTitle').innerText = t.topTitle;
+            document.getElementById('earnTitle').innerText = t.earnTitle;
+            document.getElementById('task1').innerText = t.task1;
+            document.getElementById('btnClaim').innerText = t.btnClaim;
+            document.getElementById('navRocket').innerText = t.navRocket;
+            document.getElementById('navPvp').innerText = t.navPvp;
+            document.getElementById('navGifts').innerText = t.navGifts;
+            document.getElementById('navTop').innerText = t.navTop;
+            document.getElementById('navEarn').innerText = t.navEarn;
+        }
+
+        const user = tg?.initDataUnsafe?.user;
+        if (user) {
+            document.getElementById('userName').innerText = user.first_name || "Player";
+            if (user.photo_url) document.getElementById('userAvatar').innerHTML = `<img src="${user.photo_url}">`;
+        }
+
+        function switchNav(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            element.classList.add('active');
+        }
+
+        function triggerDeposit() {
+            if (tg) { tg.sendData(JSON.stringify({ action: "deposit_stars" })); tg.showAlert("Topup options sent to bot chat ⭐"); }
+        }
+
+        let isGameRunning = false, isBetActive = false, currentMultiplier = 1.00, crashMultiplier = 1.00, loopTimer = null;
+
+        function handleGameAction() {
+            const btn = document.getElementById('mainGameBtn');
+            const t = uiTexts[currentLang];
+            if (!isGameRunning && !isBetActive) {
+                isGameRunning = true; isBetActive = true;
+                btn.className = "action-btn btn-cashout"; btn.innerText = t.cashOut;
+                runRocketRound();
+            } else if (isGameRunning && isBetActive) {
+                isBetActive = false; clearInterval(loopTimer);
+                btn.className = "action-btn btn-bet";
+                btn.innerText = `${currentMultiplier.toFixed(2)}x! 🎉`;
+                setTimeout(() => { btn.innerText = t.placeBet; isGameRunning = false; }, 2000);
+            }
+        }
+
+        function runRocketRound() {
+            currentMultiplier = 1.00;
+            const luck = Math.random();
+            if (luck < 0.25) crashMultiplier = 1.02 + Math.random() * 0.4;
+            else if (luck < 0.75) crashMultiplier = 1.5 + Math.random() * 3.5;
+            else crashMultiplier = 5.0 + Math.random() * 25.0;
+
+            const stage = document.getElementById('rocketStage'), multDisplay = document.getElementById('multDisplay'), btn = document.getElementById('mainGameBtn');
+            const t = uiTexts[currentLang];
+            multDisplay.classList.remove('crashed'); stage.style.transform = "translateY(0px)";
+
+            loopTimer = setInterval(() => {
+                currentMultiplier += 0.02 + (currentMultiplier * 0.012);
+                multDisplay.innerText = `${currentMultiplier.toFixed(2)}x`;
+                stage.style.transform = `translateY(-${Math.min(currentMultiplier * 12, 110)}px)`;
+
+                if (currentMultiplier >= crashMultiplier) {
+                    clearInterval(loopTimer);
+                    multDisplay.innerText = `💥 CRASH @ ${crashMultiplier.toFixed(2)}x`;
+                    multDisplay.classList.add('crashed');
+                    if (isBetActive) { isBetActive = false; }
+                    setTimeout(() => { btn.className = "action-btn btn-bet"; btn.innerText = t.placeBet; isGameRunning = false; }, 1500);
+                }
+            }, 80);
+        }
+    </script>
+</body>
+</html>
